@@ -1,7 +1,10 @@
 /*************************************************************
-
-  This is a simple demo of sending and receiving some data.
-  Be sure to check out other examples!
+V0 - get value from button control widget and set to value
+V1 - send value back to SwitchValue widget
+V2
+V3
+V4 - get value from slider widget and set to target_value
+V5 - send target_value back to Label widget
  *************************************************************/
 
 /* Fill-in information from Blynk Device Info here */
@@ -12,16 +15,28 @@
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
 
+#define LED_PIN D4
 
 //#include "Arduino.h"
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
+//libraries for DS18 temperature sensor
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
+// DS18B20 GPIO pin
+const int oneWireBus = D3;
 // Your WiFi credentials.
 // Set password to "" for open networks.
 char ssid[] = "PLUSNET-62C3JJ";
 char pass[] = "xeav4bnMgJX7GV";
 
+// Setup a oneWire instance to communicate with any OneWire devices
+OneWire oneWire(oneWireBus);
+// Pass the oneWire reference to Dallas Temperature sensor 
+DallasTemperature sensors(&oneWire);
+
+// set up a Blynk timer to handle timed event (measure temp and send to Blynk)
 BlynkTimer timer;
 
 // This function is called every time the Virtual Pin 0 state changes
@@ -30,8 +45,21 @@ BLYNK_WRITE(V0)
   // Set incoming value from pin V0 to a variable
   int value = param.asInt();
 
-  // Update state
+  // turn on-board LED on or off via Blynk switch (LOW = on, hence 'not value')
+  digitalWrite(LED_PIN, not value);
+
+  // Update state back to Blync.console
   Blynk.virtualWrite(V1, value);
+}
+
+// This function is called every time the Virtual Pin 4 (Slider) state changes
+BLYNK_WRITE(V4)
+{
+  // Set incoming value from pin V4 to a variable
+  float target_value = param.asDouble();
+
+  // Update state back to Blync.console
+  Blynk.virtualWrite(V5, target_value);
 }
 
 // This function is called every time the device is connected to the Blynk.Cloud
@@ -48,7 +76,10 @@ void myTimerEvent()
 {
   // You can send any value at any time.
   // Please don't send more that 10 values per second.
-  Blynk.virtualWrite(V2, millis() / 1000);
+  sensors.requestTemperatures(); 
+  float temperatureC = sensors.getTempCByIndex(0);
+  //float temperatureF = sensors.getTempFByIndex(0);
+  Blynk.virtualWrite(V2, temperatureC);
 }
 
 void setup()
@@ -63,6 +94,12 @@ void setup()
 
   // Setup a function to be called every second
   timer.setInterval(1000L, myTimerEvent);
+
+  // Start the DS18B20 sensor
+  sensors.begin();
+
+  // set up onboard LED
+  pinMode(LED_PIN, OUTPUT);  
 }
 
 void loop()
